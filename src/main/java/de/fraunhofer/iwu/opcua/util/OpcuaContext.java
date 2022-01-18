@@ -1,10 +1,13 @@
 package de.fraunhofer.iwu.opcua.util;
 
+import com.digitalpetri.strictmachine.Fsm;
 import org.eclipse.milo.opcua.sdk.client.AddressSpace;
+import org.eclipse.milo.opcua.sdk.client.DataTypeTreeSessionInitializer;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfig;
 import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider;
 import org.eclipse.milo.opcua.sdk.client.nodes.UaNode;
+import org.eclipse.milo.opcua.sdk.client.session.SessionFsm;
 import org.eclipse.milo.opcua.stack.client.DiscoveryClient;
 import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.NamespaceTable;
@@ -16,6 +19,7 @@ import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription;
 import org.eclipse.milo.opcua.stack.core.types.structured.ReferenceDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -86,6 +90,7 @@ public class OpcuaContext {
 
 
         OpcUaClient opcUaClient = OpcUaClient.create(clientConfig);
+        opcUaClient.addSessionInitializer(new DataTypeTreeSessionInitializer());
         opcUaClient.connect().get();
         return opcUaClient;
     }
