@@ -1,4 +1,4 @@
-package de.fraunhofer.iwu.opcua.util;
+package de.fraunhofer.iwu.opcua.rdf;
 
 import de.fraunhofer.iwu.opcua.rdf.TransformerUtils;
 import org.eclipse.milo.opcua.stack.core.NamespaceTable;
@@ -31,8 +31,6 @@ class TransformerUtilsTest {
         uris.add("http://opcfoundation.org/UA/DI");
         uris.add("http://opcfoundation.org/UA/DI/");
         uris.add("http://opcfoundation.org/UA/DI#Rand");
-
-
     }
 
     @Test
@@ -43,13 +41,14 @@ class TransformerUtilsTest {
     @Test
     void getIriFromNodeId() {
         nodeIdsMap.forEach((key, value) -> assertEquals(value, TransformerUtils.getIriFromNodeId(key, uaNst).toString()));
+        String urn = "urn:eclipse:milo:hello-world/QualifiedName{name=CustomUnionType, namespaceIndex=2}.Description";
     }
 
     @Test
     void getLastUriSegment() {
 
         uris.forEach(uri -> {
-            assertEquals("DI", TransformerUtils.getLastUriSegment(uri));
+            assertEquals("DI", TransformerUtils.getLastIdentifierSegment(uri));
         });
     }
 

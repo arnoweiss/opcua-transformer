@@ -16,6 +16,7 @@
         <jaxb-rich-contract.version>2.1.0</jaxb-rich-contract.version>
         <milo.version>0.6.3</milo.version>
         <junit.version>5.8.0</junit.version>
+        <rdf4j.version>3.7.0</rdf4j.version>
     </properties>
 
     <dependencies>
@@ -40,6 +41,11 @@
             <version>${milo.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>dictionary-reader</artifactId>
+            <version>${milo.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit.version}</version>
@@ -48,7 +54,8 @@
         <dependency>
             <groupId>org.eclipse.rdf4j</groupId>
             <artifactId>rdf4j-storage</artifactId>
-            <version>2.5.5</version>
+            <version>${rdf4j.version}</version>
+            <type>pom</type>
         </dependency>
     </dependencies>
 

@@ -1,35 +1,34 @@
 package de.fraunhofer.iwu.opcua.rdf;
 
 import de.fraunhofer.iwu.opcua.util.OpcuaContext;
+import de.fraunhofer.iwu.opcua.util.Transformer;
 import org.eclipse.milo.examples.server.ExampleServer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.eclipse.rdf4j.model.Model;
+import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class RdfTransformerTest {
 
-    OpcuaContext ctx;
-    RdfTransformer transformer;
-    ExampleServer server;
+    static RdfTransformer transformer;
+    static ExampleServer server;
 
-    public RdfTransformerTest() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         server = new ExampleServer();
         server.startup().get();
-        ctx = new OpcuaContext("opc.tcp://localhost:12686/milo");
-    }
-
-    @BeforeEach
-    void setUp() {
-
-    }
-
-    @AfterEach
-    void tearDown() {
     }
 
     @Test
     void transform() {
+        transformer = new RdfTransformer("opc.tcp://localhost:12686/milo");
+        Model rdfModel = transformer.transform();
+        transformer.save(rdfModel);
+
+    }
+
+    @AfterAll
+    static void tearDown() {
+        server.shutdown();
     }
 }
