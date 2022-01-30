@@ -3,6 +3,7 @@ package de.fraunhofer.iwu.opcua.rdf;
 import de.fraunhofer.iwu.opcua.util.OpcuaContext;
 import de.fraunhofer.iwu.opcua.util.Transformer;
 import org.eclipse.milo.opcua.sdk.client.DataTypeTreeSessionInitializer;
+import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.nodes.*;
 import org.eclipse.milo.opcua.sdk.core.DataTypeTree;
 import org.eclipse.milo.opcua.stack.core.BuiltinDataType;
@@ -22,6 +23,7 @@ import org.eclipse.rdf4j.rio.Rio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.crypto.dsig.Transform;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -38,9 +40,10 @@ public class RdfTransformer implements Transformer<Model> {
     Logger logger;
     ValueFactory v;
     DataTypeTree dataTypeTree;
+    IRI entryPoint;
 
 
-    public RdfTransformer(String endpointUrl) {
+    public RdfTransformer(String endpointUrl, IRI entry) {
         ctx = new OpcuaContext(endpointUrl);
         logger = LoggerFactory.getLogger(RdfTransformer.class);
         v = new ValidatingValueFactory();
@@ -51,16 +54,17 @@ public class RdfTransformer implements Transformer<Model> {
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
+        entryPoint = entry;
 
     }
 
     @Override
     public void save(Model model) {
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_TIME);
-        String lastNamespace = ctx.getNamespaces().getUri(ctx.getNamespaces().toArray().length-1);
+        String lastNamespace = ctx.getNamespaces().getUri(ctx.getNamespaces().toArray().length - 1);
         OutputStream output = OutputStream.nullOutputStream();
-        File file = new File("target/output/transformed/" + lastNamespace + now+".ttl");
-        if (!file.exists()){
+        File file = new File("target/output/transformed/" + lastNamespace + now + ".ttl");
+        if (!file.exists()) {
             file.getParentFile().mkdirs();
         }
         try (OutputStream os = new FileOutputStream(file, false);) {
@@ -106,11 +110,97 @@ public class RdfTransformer implements Transformer<Model> {
         transformDataTypeNodes(dataTypes).forEach(statement -> builder.add(statement.getSubject(), statement.getPredicate(), statement.getObject()));
 
         ctx.getClient().disconnect();
-        return builder.build();
+        return transformEndpointsAndAttach(builder, this.entryPoint).build();
     }
 
-    private Model transformEndpointsAndAttach(Model m) {
-        return m;
+    public ModelBuilder transformEndpointsAndAttach(ModelBuilder builder, Resource entryPoint) {
+        ModelBuilder b = builder;
+        b.add(entryPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasEndpoints"), v.createBNode("endpoints"));
+        ctx.getEndpoints().forEach(endp -> {
+            IRI endpointInQuestion = TransformerUtils.getIriFromEndpointDescription(endp);
+            b.add(v.createBNode("endpoints"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasEndpoint"),
+                    endpointInQuestion);
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasEndpointUrl"),
+                    v.createLiteral(endp.getEndpointUrl()));
+
+            // Server ApplicationDescription
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasServer"),
+                    v.createBNode("serverApplicationDescription")
+            );
+            b.add(v.createBNode("serverApplicationDescription"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationUri"),
+                    v.createLiteral(endp.getServer().getApplicationUri())
+            );
+            b.add(v.createBNode("serverApplicationDescription"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/productUri"),
+                    v.createLiteral(endp.getServer().getProductUri())
+            );
+            b.add(v.createBNode("serverApplicationDescription"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationName"),
+                    TransformerUtils.getOptionalLiteralFromLocalizedText(endp.getServer().getApplicationName()).get()
+            );
+            b.add(v.createBNode("serverApplicationDescription"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationType"),
+                    v.createLiteral(endp.getServer().getApplicationType().name())
+            );
+            b.add(v.createBNode("serverApplicationDescription"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/gatewayServerUri"),
+                    v.createLiteral(endp.getServer().getGatewayServerUri())
+            );
+            b.add(v.createBNode("serverApplicationDescription"),
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/discoveryProfileUri"),
+                    v.createLiteral(endp.getServer().getDiscoveryProfileUri())
+            );
+            Arrays.stream(endp.getServer().getDiscoveryUrls()).forEach(durl -> {
+                b.add(v.createBNode("serverApplicationDescription"),
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/discoveryUrls"),
+                        v.createLiteral(durl)
+                );
+            });
+            //End server ApplicationDescription
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasServerCertificate"),
+                    v.createLiteral(endp.getServerCertificate().toString()));
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasSecurityMode"),
+                    v.createLiteral(endp.getSecurityMode().name()));
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasSecurityPolicyUri"),
+                    v.createLiteral(endp.getSecurityPolicyUri()));
+            // UserIdentityTokens
+            Arrays.stream(endp.getUserIdentityTokens()).forEach(uit -> {
+                b.add(endpointInQuestion,
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasUserIdentityToken"),
+                        v.createBNode("uit"+uit.hashCode()));
+                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/policyId"),
+                        v.createLiteral(uit.getPolicyId()));
+                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/tokenType"),
+                        v.createLiteral(uit.getTokenType().name()));
+                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/issuedTokenType"),
+                        v.createLiteral(uit.getIssuedTokenType()));
+                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/issuerEndpointUrl"),
+                        v.createLiteral(uit.getIssuerEndpointUrl()));
+                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/securityPolicyUri"),
+                        v.createLiteral(uit.getSecurityPolicyUri()));
+            });
+            //End UserIdentityTokens
+
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasTransportProfileUri"),
+                    v.createLiteral(endp.getTransportProfileUri()));
+            b.add(endpointInQuestion,
+                    v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasSecurityLevel"),
+                    v.createLiteral(endp.getSecurityLevel().intValue()));
+        });
+        return builder;
 
     }
 
@@ -151,6 +241,8 @@ public class RdfTransformer implements Transformer<Model> {
                 backingClass = UInteger.class;
             } else if (backingClass.equals(Number.class)) {
                 backingClass = Integer.class;
+            } else if (backingClass.equals(Object.class)) {
+                logger.info("found a backingclass Object<?>");
             }
 
             int builtinTypeId = BuiltinDataType.getBuiltinTypeId(backingClass);

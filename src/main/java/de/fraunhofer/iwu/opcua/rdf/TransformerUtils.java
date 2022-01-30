@@ -6,11 +6,10 @@ import org.eclipse.milo.opcua.stack.core.NamespaceTable;
 import org.eclipse.milo.opcua.stack.core.types.builtin.*;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.NodeAttributesMask;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.NodeClass;
-import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Literal;
-import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription;
+import org.eclipse.rdf4j.model.*;
 import org.eclipse.rdf4j.model.impl.ValidatingValueFactory;
+import org.eclipse.rdf4j.model.util.ModelBuilder;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -82,6 +81,12 @@ public class TransformerUtils {
     public static IRI getIriFromNodeClass(NodeClass id) {
         return v.createIRI("http://opcfoundation.org/UA/NodeClasses/" + id.name());
     }
+
+    public static IRI getIriFromEndpointDescription(EndpointDescription e){
+        return v.createIRI(e.getEndpointUrl());
+    }
+
+
 
     public static Optional<List<Value>> createValueFromDataValue(DataValue value, int backingDataType, DataTypeMapper mapper) {
 
