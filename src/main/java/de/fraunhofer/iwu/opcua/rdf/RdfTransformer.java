@@ -146,13 +146,14 @@ public class RdfTransformer implements Transformer<Model> {
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationType"),
                     v.createLiteral(endp.getServer().getApplicationType().name())
             );
-            b.add(v.createBNode("serverApplicationDescription"),
+            Optional.ofNullable(endp.getServer().getGatewayServerUri()).ifPresent(gsu -> b.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/gatewayServerUri"),
-                    v.createLiteral(endp.getServer().getGatewayServerUri())
+                    v.createLiteral(gsu))
             );
-            b.add(v.createBNode("serverApplicationDescription"),
+
+            Optional.ofNullable(endp.getServer().getDiscoveryProfileUri()).ifPresent(dpu -> b.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/discoveryProfileUri"),
-                    v.createLiteral(endp.getServer().getDiscoveryProfileUri())
+                    v.createLiteral(dpu))
             );
             Arrays.stream(endp.getServer().getDiscoveryUrls()).forEach(durl -> {
                 b.add(v.createBNode("serverApplicationDescription"),
@@ -174,22 +175,24 @@ public class RdfTransformer implements Transformer<Model> {
             Arrays.stream(endp.getUserIdentityTokens()).forEach(uit -> {
                 b.add(endpointInQuestion,
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasUserIdentityToken"),
-                        v.createBNode("uit"+uit.hashCode()));
-                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createBNode("uit" + uit.hashCode()));
+                b.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/policyId"),
                         v.createLiteral(uit.getPolicyId()));
-                b.add(v.createBNode("uit"+uit.hashCode()),
+                b.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/tokenType"),
                         v.createLiteral(uit.getTokenType().name()));
-                b.add(v.createBNode("uit"+uit.hashCode()),
+                Optional.ofNullable(uit.getIssuedTokenType()).ifPresent(itt -> b.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/issuedTokenType"),
-                        v.createLiteral(uit.getIssuedTokenType()));
-                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createLiteral(itt)));
+
+                Optional.ofNullable(uit.getIssuerEndpointUrl()).ifPresent(ieu -> b.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/issuerEndpointUrl"),
-                        v.createLiteral(uit.getIssuerEndpointUrl()));
-                b.add(v.createBNode("uit"+uit.hashCode()),
+                        v.createLiteral(ieu)));
+
+                Optional.ofNullable(uit.getSecurityPolicyUri()).ifPresent(spu -> b.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/securityPolicyUri"),
-                        v.createLiteral(uit.getSecurityPolicyUri()));
+                        v.createLiteral(spu)));
             });
             //End UserIdentityTokens
 
