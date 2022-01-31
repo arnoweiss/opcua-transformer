@@ -109,9 +109,9 @@ public class RdfTransformer implements Transformer<Model> {
         return transformEndpointsAndAttach(builder, this.entryPoint).build();
     }
 
-    public ModelBuilder transformEndpointsAndAttach(ModelBuilder builder, Resource entryPoint) {
-        builder.add(entryPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasOpcuaAddressSpace"), v.createIRI("http://opcfoundation.org/UA/84"));
-        builder.add(entryPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasEndpoints"), v.createBNode("endpoints"));
+    public ModelBuilder transformEndpointsAndAttach(ModelBuilder builder, Resource adaptionPoint) {
+        builder.add(adaptionPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasOpcuaAddressSpace"), v.createIRI("http://opcfoundation.org/UA/84"));
+        builder.add(adaptionPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasEndpoints"), v.createBNode("endpoints"));
         ctx.getEndpoints().forEach(endp -> {
             IRI endpointInQuestion = TransformerUtils.getIriFromEndpointDescription(endp);
             builder.add(v.createBNode("endpoints"),

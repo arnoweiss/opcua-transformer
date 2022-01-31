@@ -1,7 +1,5 @@
 package de.fraunhofer.iwu.opcua.rdf;
 
-import de.fraunhofer.iwu.opcua.util.OpcuaContext;
-import de.fraunhofer.iwu.opcua.util.Transformer;
 import org.eclipse.milo.examples.server.ExampleServer;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
@@ -15,19 +13,24 @@ import org.eclipse.rdf4j.query.TupleQueryResult;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
+import org.eclipse.rdf4j.rio.RDFFormat;
+import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
+import org.eclipse.rdf4j.sparqlbuilder.core.QueryElement;
 import org.eclipse.rdf4j.sparqlbuilder.core.SparqlBuilder;
 import org.eclipse.rdf4j.sparqlbuilder.core.Variable;
 import org.eclipse.rdf4j.sparqlbuilder.core.query.OuterQuery;
 import org.eclipse.rdf4j.sparqlbuilder.core.query.Queries;
 import org.eclipse.rdf4j.sparqlbuilder.core.query.SelectQuery;
-import org.eclipse.rdf4j.sparqlbuilder.graphpattern.GraphPattern;
 import org.eclipse.rdf4j.sparqlbuilder.graphpattern.GraphPatterns;
 import org.eclipse.rdf4j.sparqlbuilder.graphpattern.TriplePattern;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
+import java.io.*;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,14 +39,14 @@ class RdfTransformerTest {
 
     static RdfTransformer transformer;
     static ExampleServer server;
-    static IRI testEntryPoint;
+    static IRI adaptionPoint;
     static ValueFactory v;
 
 
     @BeforeAll
     static void setUp() throws Exception {
         v = new ValidatingValueFactory();
-        testEntryPoint = v.createIRI("http://iwu.fraunhofer.de/c32/testEntryPoint");
+        adaptionPoint = v.createIRI("http://iwu.fraunhofer.de/c32/testAdaptionPoint");
         server = new ExampleServer();
         server.startup().get();
     }
@@ -55,39 +58,71 @@ class RdfTransformerTest {
 
     @Test
     void transform() {
-        transformer = new RdfTransformer("opc.tcp://localhost:12686/milo", testEntryPoint);
+        transformer = new RdfTransformer("opc.tcp://localhost:12686/milo", adaptionPoint);
         Model rdfModel = transformer.transform();
         assertTrue(Stream.of(rdfModel.getStatements(null, null, null)).count() > Long.parseLong("100"));
         transformer.save(rdfModel);
     }
 
     @Test
-    void attachAndSparql() {
+    void expAttachAndSparql() {
         Repository db = new SailRepository(new MemoryStore());
         Model dummy = buildDummyGraph();
-        IRI entry = v.createIRI("http://iwu.fraunhofer.de/c32/Machine/1");
+        IRI adaptPoint = v.createIRI("http://iwu.fraunhofer.de/c32/Machine/1");
 
-        transformer = new RdfTransformer("opc.tcp://localhost:12686/milo", entry);
+        transformer = new RdfTransformer("opc.tcp://localhost:12686/milo", adaptPoint);
         Model rdfModel = transformer.transform();
         dummy.getStatements(null, null, null).forEach(rdfModel::add);
         try (RepositoryConnection conn = db.getConnection()) {
             rdfModel.getStatements(null, null, null).forEach(conn::add);
-            TupleQuery tquery = conn.prepareTupleQuery(getTestQuery().getQueryString());
+            TupleQuery tquery = conn.prepareTupleQuery(getExpTestQuery().getQueryString());
             try (TupleQueryResult result = tquery.evaluate()) {
                 result.stream().forEach(bn -> System.out.println(bn.getValue("machines")));
+                assertTrue(result.stream().findAny().isPresent());
+                assertEquals("http://iwu.fraunhofer.de/c32/Machine/1", result.stream().findFirst().get().getValue("machines").stringValue());
             }
         }
     }
 
     @Test
+    void aasAttachAndSparql() throws IOException {
+        Model aas = buildDummyAAS();
+        Repository db = new SailRepository(new MemoryStore());
+        IRI adaptPoint = v.createIRI("http://customer.com/aas/9175_7013_7091_9168");
+        transformer = new RdfTransformer("opc.tcp://localhost:12686/milo", adaptPoint);
+        Model rdfModel = transformer.transform();
+        aas.getStatements(null, null, null).forEach(rdfModel::add);
+        try (RepositoryConnection conn = db.getConnection()) {
+            rdfModel.getStatements(null, null, null).forEach(conn::add);
+            TupleQuery tquery = conn.prepareTupleQuery(getAasTestQuery().getQueryString());
+            try (TupleQueryResult result = tquery.evaluate()) {
+                assertEquals("http://customer.com/aas/9175_7013_7091_9168", result.stream().findFirst().get().getValue("aas").stringValue());
+            }
+        }
+    }
+
+
+    @Test
     @Disabled
     void transformWithManuallyStartedServer() {
-        transformer = new RdfTransformer("opc.tcp://localhost:4840", testEntryPoint);
+        transformer = new RdfTransformer("opc.tcp://localhost:4840", adaptionPoint);
         Model rdfModel = transformer.transform();
         transformer.save(rdfModel);
     }
 
-    OuterQuery<?> getTestQuery() {
+    private QueryElement getAasTestQuery() {
+        SelectQuery selectQuery = Queries.SELECT();
+        Variable aas = SparqlBuilder.var("aas");
+        Variable roots = SparqlBuilder.var("rootNodes");
+        TriplePattern allAas = GraphPatterns.tp(aas, RDF.TYPE, v.createIRI("https://admin-shell.io/aas/3/0/RC01/AssetAdministrationShell"));
+        TriplePattern withOpcuaAddrSpace = GraphPatterns.tp(aas, v.createIRI("http://iwu.fraunhofer.de/c32/hasOpcuaAddressSpace"), roots);
+        SelectQuery allAasWithUaServers = selectQuery.select(aas).where(allAas.and(withOpcuaAddrSpace));
+        assertFalse(allAasWithUaServers.getQueryString().isEmpty());
+        return allAasWithUaServers;
+    }
+
+
+    private OuterQuery<?> getExpTestQuery() {
         SelectQuery selectQuery = Queries.SELECT();
         Variable machines = SparqlBuilder.var("machines");
         Variable roots = SparqlBuilder.var("rootNodes");
@@ -99,11 +134,11 @@ class RdfTransformerTest {
     }
 
     @Test
-    void printTestQuery() {
-        System.out.println(getTestQuery().getQueryString());
+    void printExpTestQuery() {
+        System.out.println(getExpTestQuery().getQueryString());
     }
 
-    Model buildDummyGraph() {
+    private Model buildDummyGraph() {
         ModelBuilder b = new ModelBuilder();
         b.add(v.createIRI("http://iwu.fraunhofer.de/c32/Machine"), RDF.TYPE, RDFS.CLASS);
         Arrays.stream(new int[]{1, 2, 3, 4, 5}).forEach(num -> {
@@ -115,10 +150,13 @@ class RdfTransformerTest {
         return b.build();
     }
 
-    Model buildDummyAAS() {
-        ModelBuilder b = new ModelBuilder();
+    private Model buildDummyAAS() throws IOException {
 
-        return b.build();
+        File file = new File("src/test/resources/AssetAdministrationShell_Example.ttl");
+        FileInputStream fis = new FileInputStream(file);
+        Model aas = Rio.parse(fis, RDFFormat.TURTLE);
+
+        return aas;
     }
 
 }
