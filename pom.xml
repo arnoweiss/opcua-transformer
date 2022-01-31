@@ -66,18 +66,6 @@
             <version>${rdf4j.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.admin-shell.aas</groupId>
-            <artifactId>model</artifactId>
-            <version>${aas-model.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.admin-shell.aas</groupId>
-            <artifactId>dataformat-rdf</artifactId>
-            <version>${aas-dataformat.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -111,7 +99,8 @@
                     </execution>
                     <execution>
                         <id>generate-uatypes-classes</id>
-                        <phase>generate-sources</phase><!-- currently generated classes do not work properly when nested, namespace is not declared, fixable within package-info thus copy-pasted and manually adjusted -->
+                        <phase>generate-sources
+                        </phase><!-- currently generated classes do not work properly when nested, namespace is not declared, fixable within package-info thus copy-pasted and manually adjusted -->
                         <goals>
                             <goal>xsdtojava</goal>
                         </goals>

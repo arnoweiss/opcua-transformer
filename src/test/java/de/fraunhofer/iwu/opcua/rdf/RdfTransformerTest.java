@@ -133,11 +133,6 @@ class RdfTransformerTest {
         return allMachinesWithUaServers;
     }
 
-    @Test
-    void printExpTestQuery() {
-        System.out.println(getExpTestQuery().getQueryString());
-    }
-
     private Model buildDummyGraph() {
         ModelBuilder b = new ModelBuilder();
         b.add(v.createIRI("http://iwu.fraunhofer.de/c32/Machine"), RDF.TYPE, RDFS.CLASS);
