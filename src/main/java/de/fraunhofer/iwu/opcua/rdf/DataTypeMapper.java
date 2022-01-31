@@ -4,7 +4,6 @@ import de.fraunhofer.iwu.opcua.util.OpcuaContext;
 import org.eclipse.milo.opcua.sdk.client.DataTypeTreeSessionInitializer;
 import org.eclipse.milo.opcua.sdk.core.DataTypeTree;
 import org.eclipse.milo.opcua.stack.core.BuiltinDataType;
-import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
 import org.eclipse.milo.opcua.stack.core.types.builtin.*;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -12,15 +11,14 @@ import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.ValidatingValueFactory;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DataTypeMapper {
-    private DataTypeTree tree;
-    private OpcuaContext ctx;
-    private ValueFactory v;
+    private final DataTypeTree tree;
+    private final OpcuaContext ctx;
+    private final ValueFactory v;
 
     public DataTypeMapper(DataTypeTree dataTypeTree, OpcuaContext opcuaContext) {
         tree = dataTypeTree;
@@ -120,7 +118,6 @@ public class DataTypeMapper {
     }
 
     public Literal getLiteralFromExtensionObject(Object o) {
-        //String s = Stream.of(((ExtensionObject[]) o)).map(el -> el.decode(ctx.getClient().getDynamicSerializationContext())).collect(Collectors.toList()).toString();
         String decode = ((ExtensionObject) o).decode(ctx.getClient().getDynamicSerializationContext()).toString();
         return v.createLiteral(decode);
     }
@@ -138,9 +135,7 @@ public class DataTypeMapper {
             int builtinTypeId = BuiltinDataType.getBuiltinTypeId(dataTypeTree.getBackingClass(node.getValue().getDataType().get().toNodeId(ctx.getNamespaces()).get()));
             ret = TransformerUtils.createValueFromDataValue(node, builtinTypeId, this).get().get(0);
 
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
         return ret;

@@ -3,27 +3,23 @@ package de.fraunhofer.iwu.opcua.rdf;
 import de.fraunhofer.iwu.opcua.util.OpcuaContext;
 import de.fraunhofer.iwu.opcua.util.Transformer;
 import org.eclipse.milo.opcua.sdk.client.DataTypeTreeSessionInitializer;
-import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.nodes.*;
 import org.eclipse.milo.opcua.sdk.core.DataTypeTree;
 import org.eclipse.milo.opcua.stack.core.BuiltinDataType;
-import org.eclipse.milo.opcua.stack.core.Identifiers;
 import org.eclipse.milo.opcua.stack.core.NamespaceTable;
-import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UInteger;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UNumber;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.NodeAttributesMask;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.NodeClass;
 import org.eclipse.milo.opcua.stack.core.types.structured.ReferenceDescription;
 import org.eclipse.rdf4j.model.*;
-import org.eclipse.rdf4j.model.impl.*;
+import org.eclipse.rdf4j.model.impl.ValidatingValueFactory;
 import org.eclipse.rdf4j.model.util.ModelBuilder;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.Rio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.crypto.dsig.Transform;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -37,10 +33,10 @@ public class RdfTransformer implements Transformer<Model> {
 
     OpcuaContext ctx;
     IRI currentSubject;
+    IRI entryPoint;
     Logger logger;
     ValueFactory v;
     DataTypeTree dataTypeTree;
-    IRI entryPoint;
 
 
     public RdfTransformer(String endpointUrl, IRI entry) {
@@ -67,7 +63,7 @@ public class RdfTransformer implements Transformer<Model> {
         if (!file.exists()) {
             file.getParentFile().mkdirs();
         }
-        try (OutputStream os = new FileOutputStream(file, false);) {
+        try (OutputStream os = new FileOutputStream(file, false)) {
             Rio.write(model, os, RDFFormat.TURTLE);
 
         } catch (FileNotFoundException e) {
@@ -114,92 +110,92 @@ public class RdfTransformer implements Transformer<Model> {
     }
 
     public ModelBuilder transformEndpointsAndAttach(ModelBuilder builder, Resource entryPoint) {
-        ModelBuilder b = builder;
-        b.add(entryPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasEndpoints"), v.createBNode("endpoints"));
+        builder.add(entryPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasOpcuaAddressSpace"), v.createIRI("http://opcfoundation.org/UA/84"));
+        builder.add(entryPoint, v.createIRI("http://iwu.fraunhofer.de/c32/hasEndpoints"), v.createBNode("endpoints"));
         ctx.getEndpoints().forEach(endp -> {
             IRI endpointInQuestion = TransformerUtils.getIriFromEndpointDescription(endp);
-            b.add(v.createBNode("endpoints"),
+            builder.add(v.createBNode("endpoints"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasEndpoint"),
                     endpointInQuestion);
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasEndpointUrl"),
                     v.createLiteral(endp.getEndpointUrl()));
 
             // Server ApplicationDescription
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasServer"),
                     v.createBNode("serverApplicationDescription")
             );
-            b.add(v.createBNode("serverApplicationDescription"),
+            builder.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationUri"),
                     v.createLiteral(endp.getServer().getApplicationUri())
             );
-            b.add(v.createBNode("serverApplicationDescription"),
+            builder.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/productUri"),
                     v.createLiteral(endp.getServer().getProductUri())
             );
-            b.add(v.createBNode("serverApplicationDescription"),
+            builder.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationName"),
                     TransformerUtils.getOptionalLiteralFromLocalizedText(endp.getServer().getApplicationName()).get()
             );
-            b.add(v.createBNode("serverApplicationDescription"),
+            builder.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/applicationType"),
                     v.createLiteral(endp.getServer().getApplicationType().name())
             );
-            Optional.ofNullable(endp.getServer().getGatewayServerUri()).ifPresent(gsu -> b.add(v.createBNode("serverApplicationDescription"),
+            Optional.ofNullable(endp.getServer().getGatewayServerUri()).ifPresent(gsu -> builder.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/gatewayServerUri"),
                     v.createLiteral(gsu))
             );
 
-            Optional.ofNullable(endp.getServer().getDiscoveryProfileUri()).ifPresent(dpu -> b.add(v.createBNode("serverApplicationDescription"),
+            Optional.ofNullable(endp.getServer().getDiscoveryProfileUri()).ifPresent(dpu -> builder.add(v.createBNode("serverApplicationDescription"),
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/discoveryProfileUri"),
                     v.createLiteral(dpu))
             );
             Arrays.stream(endp.getServer().getDiscoveryUrls()).forEach(durl -> {
-                b.add(v.createBNode("serverApplicationDescription"),
+                builder.add(v.createBNode("serverApplicationDescription"),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/discoveryUrls"),
                         v.createLiteral(durl)
                 );
             });
             //End server ApplicationDescription
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasServerCertificate"),
                     v.createLiteral(endp.getServerCertificate().toString()));
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasSecurityMode"),
                     v.createLiteral(endp.getSecurityMode().name()));
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasSecurityPolicyUri"),
                     v.createLiteral(endp.getSecurityPolicyUri()));
             // UserIdentityTokens
             Arrays.stream(endp.getUserIdentityTokens()).forEach(uit -> {
-                b.add(endpointInQuestion,
+                builder.add(endpointInQuestion,
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasUserIdentityToken"),
                         v.createBNode("uit" + uit.hashCode()));
-                b.add(v.createBNode("uit" + uit.hashCode()),
+                builder.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/policyId"),
                         v.createLiteral(uit.getPolicyId()));
-                b.add(v.createBNode("uit" + uit.hashCode()),
+                builder.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/tokenType"),
                         v.createLiteral(uit.getTokenType().name()));
-                Optional.ofNullable(uit.getIssuedTokenType()).ifPresent(itt -> b.add(v.createBNode("uit" + uit.hashCode()),
+                Optional.ofNullable(uit.getIssuedTokenType()).ifPresent(itt -> builder.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/issuedTokenType"),
                         v.createLiteral(itt)));
 
-                Optional.ofNullable(uit.getIssuerEndpointUrl()).ifPresent(ieu -> b.add(v.createBNode("uit" + uit.hashCode()),
+                Optional.ofNullable(uit.getIssuerEndpointUrl()).ifPresent(ieu -> builder.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/issuerEndpointUrl"),
                         v.createLiteral(ieu)));
 
-                Optional.ofNullable(uit.getSecurityPolicyUri()).ifPresent(spu -> b.add(v.createBNode("uit" + uit.hashCode()),
+                Optional.ofNullable(uit.getSecurityPolicyUri()).ifPresent(spu -> builder.add(v.createBNode("uit" + uit.hashCode()),
                         v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/securityPolicyUri"),
                         v.createLiteral(spu)));
             });
             //End UserIdentityTokens
 
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasTransportProfileUri"),
                     v.createLiteral(endp.getTransportProfileUri()));
-            b.add(endpointInQuestion,
+            builder.add(endpointInQuestion,
                     v.createIRI("http://iwu.fraunhofer.de/c32/ua/rdf/hasSecurityLevel"),
                     v.createLiteral(endp.getSecurityLevel().intValue()));
         });
@@ -230,7 +226,6 @@ public class RdfTransformer implements Transformer<Model> {
             List<Statement> statements = transformGenericNode(e.getKey(), e.getValue());
             statements.add(v.createStatement(currentSubject, TransformerUtils.getIriFromAttributeMask(NodeAttributesMask.DataType), TransformerUtils.getIriFromNodeId(e.getKey().getDataType(), ctx.getNamespaces())));
             statements.add(v.createStatement(currentSubject, TransformerUtils.getIriFromAttributeMask(NodeAttributesMask.ValueRank), v.createLiteral(e.getKey().getValueRank())));
-            logger.info(e.getKey().getValueRank().toString());
             statements.add(v.createStatement(currentSubject, TransformerUtils.getIriFromAttributeMask(NodeAttributesMask.AccessLevel), v.createLiteral(e.getKey().getAccessLevel().intValue())));
             statements.add(v.createStatement(currentSubject, TransformerUtils.getIriFromAttributeMask(NodeAttributesMask.UserAccessLevel), v.createLiteral(e.getKey().getUserAccessLevel().intValue())));
             statements.add(v.createStatement(currentSubject, TransformerUtils.getIriFromAttributeMask(NodeAttributesMask.Historizing), v.createLiteral(e.getKey().getHistorizing())));
@@ -239,7 +234,6 @@ public class RdfTransformer implements Transformer<Model> {
 
             DataTypeMapper dtm = new DataTypeMapper(dataTypeTree, ctx);
             Class<?> backingClass = dataTypeTree.getBackingClass(e.getKey().getDataType());
-            logger.info("is backingclass: " + backingClass + ", name: " + e.getKey().getDisplayName().toString());
             if (backingClass.equals(UNumber.class)) {
                 backingClass = UInteger.class;
             } else if (backingClass.equals(Number.class)) {
@@ -258,6 +252,7 @@ public class RdfTransformer implements Transformer<Model> {
 
             return statements.stream();
         };
+
         return variableNodes.entrySet().stream().flatMap(pred).collect(Collectors.toList());
     }
 
@@ -333,7 +328,7 @@ public class RdfTransformer implements Transformer<Model> {
         return viewNodes.entrySet().stream().flatMap(pred).collect(Collectors.toList());
     }
 
-    protected List<Statement> transformGenericNode(UaNode node, List<ReferenceDescription> references) {
+    private List<Statement> transformGenericNode(UaNode node, List<ReferenceDescription> references) {
         ArrayList<Statement> l = new ArrayList<>();
         currentSubject = TransformerUtils.getIriFromNodeId(node.getNodeId(), ctx.getNamespaces());
 

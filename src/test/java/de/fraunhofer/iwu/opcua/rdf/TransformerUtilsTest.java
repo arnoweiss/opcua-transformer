@@ -1,6 +1,5 @@
 package de.fraunhofer.iwu.opcua.rdf;
 
-import de.fraunhofer.iwu.opcua.rdf.TransformerUtils;
 import org.eclipse.milo.opcua.stack.core.NamespaceTable;
 import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;

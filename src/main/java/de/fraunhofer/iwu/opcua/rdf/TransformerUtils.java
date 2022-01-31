@@ -32,7 +32,7 @@ public class TransformerUtils {
                 } else {
                     parsedUrn = string;
                 }
-                return parsedUrn.substring(parsedUrn.lastIndexOf(":"), parsedUrn.length());
+                return parsedUrn.substring(parsedUrn.lastIndexOf(":"));
             } else {
                 throw new RuntimeException(string + " is no proper uri or urn");
             }
